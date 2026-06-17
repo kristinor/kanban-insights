@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban Insights</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f6f8;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  h2 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8892a0;
+    margin-bottom: 16px;
+  }
+
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8892a0;
+  }
+
+  input {
+    padding: 7px 10px;
+    border: 1px solid #dde1e7;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #1a2332;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input:focus { border-color: #4f8ef7; }
+
+  .generate-btn {
+    width: 100%;
+    padding: 11px;
+    background: #1a2332;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 20px;
+  }
+
+  .generate-btn:hover { background: #2d3f55; }
+  .generate-btn:disabled { background: #8892a0; cursor: not-allowed; }
+
+  .insights-panel { display: flex; flex-direction: column; gap: 10px; }
+
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    border: 1px solid #eaedf1;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .icon-warn  { background: #fff8e6; }
+  .icon-alert { background: #ffeee6; }
+  .icon-good  { background: #edfaf3; }
+  .icon-info  { background: #eef3ff; }
+
+  .card-body { flex: 1; }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a2332;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .card-desc {
+    font-size: 12.5px;
+    color: #5a6577;
+    line-height: 1.55;
+  }
+
+  .skeleton {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 18px;
+    border: 1px solid #eaedf1;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .skel-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #f0f2f5 25%, #e4e7ec 50%, #f0f2f5 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    flex-shrink: 0;
+  }
+
+  .skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+
+  .skel-line {
+    height: 12px; border-radius: 4px;
+    background: linear-gradient(90deg, #f0f2f5 25%, #e4e7ec 50%, #f0f2f5 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+
+  .skel-line.short { width: 55%; }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .error-msg {
+    background: #fff2f2;
+    border: 1px solid #ffd0d0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #c0392b;
+  }
+
+  .footer {
+    margin-top: 14px;
+    font-size: 10px;
+    color: #aab2bc;
+    text-align: right;
+    letter-spacing: 0.03em;
+  }
+</style>
+</head>
+<body>
+
+<h2>Kanban AI Insights</h2>
+
+<div class="input-grid">
+  <div class="input-group">
+    <label>Avg Cycle Time (days)</label>
+    <input id="avgCycle" type="number" step="0.1" placeholder="e.g. 4.6">
+  </div>
+  <div class="input-group">
+    <label>Cycle Time Delta (days)</label>
+    <input id="cycleDelta" type="number" step="0.1" placeholder="e.g. -1.1">
+  </div>
+  <div class="input-group">
+    <label>85th Pct Cycle Time</label>
+    <input id="pct85" type="number" step="0.1" placeholder="e.g. 9.8">
+  </div>
+  <div class="input-group">
+    <label>Throughput (/wk)</label>
+    <input id="throughput" type="number" step="0.1" placeholder="e.g. 26.5">
+  </div>
+  <div class="input-group">
+    <label>Throughput Delta (%)</label>
+    <input id="throughputDelta" type="number" step="1" placeholder="e.g. 9">
+  </div>
+  <div class="input-group">
+    <label>Total Completed</label>
+    <input id="totalCompleted" type="number" placeholder="e.g. 344">
+  </div>
+  <div class="input-group">
+    <label>Current WIP</label>
+    <input id="wip" type="number" placeholder="e.g. 23">
+  </div>
+  <div class="input-group">
+    <label>WIP Limit</label>
+    <input id="wipLimit" type="number" placeholder="e.g. 20">
+  </div>
+  <div class="input-group">
+    <label>Flow Efficiency (%)</label>
+    <input id="flowEff" type="number" step="1" placeholder="e.g. 41">
+  </div>
+  <div class="input-group">
+    <label>Flow Efficiency Delta (pt)</label>
+    <input id="flowDelta" type="number" step="1" placeholder="e.g. -3">
+  </div>
+  <div class="input-group">
+    <label>Bottleneck Stage</label>
+    <input id="bottleneck" type="text" placeholder="e.g. In Review">
+  </div>
+  <div class="input-group">
+    <label>Avg Days in Bottleneck</label>
+    <input id="bottleneckDays" type="number" step="0.1" placeholder="e.g. 2.3">
+  </div>
+</div>
+
+<button class="generate-btn" id="generateBtn" onclick="generateInsights()">Generate Insights</button>
+
+<div class="insights-panel" id="insightsPanel"></div>
+<div class="footer" id="footer"></div>
+
+<script>
+async function generateInsights() {
+  const btn = document.getElementById('generateBtn');
+  const panel = document.getElementById('insightsPanel');
+  const footer = document.getElementById('footer');
+
+  const metrics = {
+    avgCycle:        parseFloat(document.getElementById('avgCycle').value) || null,
+    cycleDelta:      parseFloat(document.getElementById('cycleDelta').value) || null,
+    pct85:           parseFloat(document.getElementById('pct85').value) || null,
+    throughput:      parseFloat(document.getElementById('throughput').value) || null,
+    throughputDelta: parseFloat(document.getElementById('throughputDelta').value) || null,
+    totalCompleted:  parseInt(document.getElementById('totalCompleted').value) || null,
+    wip:             parseInt(document.getElementById('wip').value) || null,
+    wipLimit:        parseInt(document.getElementById('wipLimit').value) || null,
+    flowEff:         parseFloat(document.getElementById('flowEff').value) || null,
+    flowDelta:       parseFloat(document.getElementById('flowDelta').value) || null,
+    bottleneck:      document.getElementById('bottleneck').value || null,
+    bottleneckDays:  parseFloat(document.getElementById('bottleneckDays').value) || null,
+  };
+
+  // Show skeletons
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  panel.innerHTML = [1,2,3].map(() => `
+    <div class="skeleton">
+      <div class="skel-icon"></div>
+      <div class="skel-lines">
+        <div class="skel-line short"></div>
+        <div class="skel-line"></div>
+        <div class="skel-line"></div>
+      </div>
+    </div>
+  `).join('');
+  footer.textContent = '';
+
+  const prompt = `You are a Kanban analytics expert. Given the following team metrics, generate exactly 3 insight cards in JSON format.
+
+Metrics:
+- Average Cycle Time: ${metrics.avgCycle ?? 'unknown'} days (delta vs prior period: ${metrics.cycleDelta ?? 'unknown'} days)
+- 85th Percentile Cycle Time: ${metrics.pct85 ?? 'unknown'} days
+- Throughput: ${metrics.throughput ?? 'unknown'} tickets/week (${metrics.totalCompleted ?? 'unknown'} tickets completed, delta: ${metrics.throughputDelta ?? 'unknown'}%)
+- Current WIP: ${metrics.wip ?? 'unknown'} items (limit: ${metrics.wipLimit ?? 'unknown'})
+- Flow Efficiency: ${metrics.flowEff ?? 'unknown'}% (delta: ${metrics.flowDelta ?? 'unknown'} pts)
+- Biggest bottleneck stage: ${metrics.bottleneck ?? 'unknown'} (avg ${metrics.bottleneckDays ?? 'unknown'} days)
+
+Rules:
+- Identify the 3 most important signals: one problem/bottleneck, one risk or WIP concern, one positive/strength
+- Each card must reference specific numbers from the metrics
+- Be direct and actionable, not generic
+- Tone: concise, data-driven, plain English — like a senior engineering lead talking to a team
+
+Return ONLY a valid JSON array, no markdown, no explanation:
+[
+  {
+    "type": "warn|alert|good|info",
+    "icon": "⚠️|🕐|📈|ℹ️",
+    "title": "short punchy title",
+    "description": "1-2 sentences with specific numbers and implication"
+  },
+  ...
+]`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content.find(b => b.type === 'text')?.text || '[]';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const cards = JSON.parse(clean);
+
+    panel.innerHTML = cards.map(card => `
+      <div class="card">
+        <div class="icon-wrap icon-${card.type}">${card.icon}</div>
+        <div class="card-body">
+          <div class="card-title">${card.title}</div>
+          <div class="card-desc">${card.description}</div>
+        </div>
+      </div>
+    `).join('');
+
+    footer.textContent = `Generated ${new Date().toLocaleTimeString()}`;
+
+  } catch (err) {
+    panel.innerHTML = `<div class="error-msg">Failed to generate insights. Check your inputs and try again.<br><small>${err.message}</small></div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Generate Insights';
+}
+</script>
+</body>
+</html>
